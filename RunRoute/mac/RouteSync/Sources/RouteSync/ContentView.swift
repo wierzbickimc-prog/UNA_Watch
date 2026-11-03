@@ -67,7 +67,7 @@ struct ContentView: View {
     }
 
     private var ready: some View {
-        Page(eyebrow: "Routes, workouts & settings", title: "Your watch.", watchConnected: model.isMounted) {
+        Page(eyebrow: "Routes, workouts & settings", title: "Your watch.", watchConnected: model.isMounted, onEject: model.ejectWatch) {
             VStack(spacing: 14) {
                 Button {
                     model.choose()
@@ -140,9 +140,13 @@ struct ContentView: View {
 
     private func finished(_ ejection: UploadModel.Ejection, sentAnything: Bool, sentWorkout: Bool) -> some View {
         let failed = model.outcomes.contains(where: \.isFailure)
-        return Page(eyebrow: failed ? "Something needs a look" : "All done",
-                    title: failed ? "Not quite." : "On your watch.",
-                    watchConnected: model.isMounted) {
+        // Just ejecting, with nothing sent.
+        let onlyEjected = model.outcomes.isEmpty && !sentAnything
+        return Page(eyebrow: failed || ejection == .failed ? "Something needs a look" : "All done",
+                    title: onlyEjected ? (ejection == .failed ? "Still plugged in." : "Safe to unplug.")
+                        : failed ? "Not quite." : "On your watch.",
+                    watchConnected: model.isMounted,
+                    onEject: model.ejectWatch) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if !model.outcomes.isEmpty {
@@ -182,12 +186,12 @@ struct ContentView: View {
         case .done:
             note("Ejected. You can unplug the watch.")
         case .failed:
-            Text("Couldn't eject. Eject in Finder before unplugging.")
+            Text("Couldn't eject. Try again before unplugging.")
                 .font(Theme.ui(13, .semibold))
                 .foregroundStyle(Theme.accent)
         case .notTried:
             if model.isMounted {
-                Text("Still connected. Eject in Finder before unplugging.")
+                Text("Still connected. Eject before unplugging.")
                     .font(Theme.ui(13, .semibold))
                     .foregroundStyle(Theme.accent)
             }
@@ -457,7 +461,7 @@ private struct ManageView: View {
                 Text("Edit a name to rename it.").font(Theme.ui(12)).foregroundStyle(Theme.muted)
                 Spacer()
                 // No Return shortcut: Return in a name field would eject.
-                Button("Eject Watch") { model.finishManaging() }.themedButton(primary: true)
+                Button("Eject Watch") { model.ejectWatch() }.themedButton(primary: true)
             }
         }
         .confirmationDialog("Delete \(confirming?.name ?? "") from the watch?",

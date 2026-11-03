@@ -157,6 +157,8 @@ struct Page<Content: View, Footer: View>: View {
     let eyebrow: String
     let title: String
     let watchConnected: Bool
+    /// Offers an Eject button while the watch is connected.
+    var onEject: (() -> Void)? = nil
     @ViewBuilder let content: Content
     @ViewBuilder let footer: Footer
 
@@ -175,6 +177,13 @@ struct Page<Content: View, Footer: View>: View {
                         .foregroundStyle(Theme.muted)
                 }
                 .padding(.top, 4)
+                if watchConnected, let onEject {
+                    Button(action: onEject) {
+                        Label("Eject", systemImage: "eject.fill")
+                    }
+                    .themedButton(small: true)
+                    .padding(.leading, 6)
+                }
             }
             .padding(.horizontal, 24)
             .padding(.top, 8)

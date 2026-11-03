@@ -92,6 +92,9 @@ final class UploadModel: ObservableObject {
     @Published private(set) var watchRoutes: [String] = []
     @Published private(set) var watchWorkouts: [WatchWorkout] = []
     @Published var message: String?
+    @Published private(set) var opensWithWatch = false
+    /// Nil when running outside the app bundle, as launchd would have nothing to open.
+    private let autoOpen = Bundle.main.bundlePath.hasSuffix(".app") ? AutoOpen(app: Bundle.main.bundlePath) : nil
 
     private var readsInProgress = 0
     private var approved: (routes: [RouteFile], workouts: [RouteUploader.WorkoutFile])?
@@ -112,6 +115,8 @@ final class UploadModel: ObservableObject {
         settings = loaded
         thresholdBpm = bpm
         thresholdPace = pace
+        try? autoOpen?.refresh()
+        opensWithWatch = autoOpen?.isOn ?? false
 
         let center = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification] {
@@ -410,6 +415,12 @@ final class UploadModel: ObservableObject {
 
     // MARK: Settings
 
+    func setOpensWithWatch(_ on: Bool) {
+        guard let autoOpen else { return }
+        attempt { on ? try autoOpen.turnOn() : try autoOpen.turnOff() }
+        opensWithWatch = autoOpen.isOn
+    }
+
     func openSettings() {
         loadTraining()
         phase = .settings
@@ -575,7 +586,7 @@ final class UploadModel: ObservableObject {
         }
     }
 
-    func finishManaging() {
+    func ejectWatch() {
         phase = .working("Ejecting the watch")
         Task {
             let ejected = await Self.eject()

@@ -7,10 +7,25 @@ struct SettingsView: View {
     @ObservedObject var model: UploadModel
 
     var body: some View {
-        Page(eyebrow: "Yours to set", title: "Settings.", watchConnected: model.isMounted) {
+        Page(eyebrow: "Yours to set", title: "Settings.", watchConnected: model.isMounted, onEject: model.ejectWatch) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionTitle(title: "Threshold")
+                    SectionTitle(title: "This Mac")
+                    Card {
+                        HStack {
+                            Text("Open RouteSync when the watch is plugged in")
+                                .font(Theme.ui(14))
+                                .foregroundStyle(Theme.ink)
+                            Spacer()
+                            Toggle("", isOn: Binding(get: { model.opensWithWatch }, set: { model.setOpensWithWatch($0) }))
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                        }
+                        .padding(12)
+                    }
+                    caption("Changes right away. This also happens when you plug in just to charge.")
+
+                    SectionTitle(title: "Threshold").padding(.top, 8)
                     Card {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Enforce zones by").font(Theme.ui(13, .medium)).foregroundStyle(Theme.muted)

@@ -109,6 +109,34 @@ Routes can't be sent from the Mac over Bluetooth for now: while the watch is pai
 
 After using `gpx2route.py --install`, eject the watch. To install the app itself, follow [Install an app](#install-an-app) with `RunRoute` in place of `MyRun`. To build or simulate it, use the commands below with `RunRoute` in place of `MyRun`. Its tests are in `RunRoute/Software/Tests/`.
 
+## Opening with the watch
+
+Settings > This Mac can open RouteSync when the watch is plugged in. It adds a
+launchd agent, `~/Library/LaunchAgents/local.routesync.open-on-watch.plist`, which
+runs a one-line check whenever a drive mounts. Nothing stays running between. Turn
+the switch off to remove it. If you move the app, open it once by hand so the agent
+follows.
+
+## Bridge watch faces
+
+`BridgeFace/` builds two watch faces showing the time and battery percentage over
+a photo of the Atlantic Coast Line Railroad Bridge in Richmond, Virginia. Choose
+one in Settings > Watch Face.
+
+```bash
+export UNA_SDK="$PWD/una-sdk" PATH="$PWD/tools/stm32cubeclt/tmp.pkg/Payload/GNU-tools-for-STM32/bin:$PATH"
+cmake -G "Unix Makefiles" -S BridgeFace/Software/Apps/BridgeFace-CMake -B BridgeFace/build/arches \
+  -DFACE=Arches -DUNA_PYTHON_EXECUTABLE="$PWD/.venv/bin/python3"
+cmake --build BridgeFace/build/arches -j10
+```
+
+Use `-DFACE=Sunset` for the other. `BridgeFace/tools/make_faces.py` makes the images.
+
+Photos, cropped, recolored and darkened for the screen: "Atlantic Coast Line
+Railroad Bridge" by Eli Christman, [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/),
+and "Atlantic coastline trestle" by Kwhopson, public domain, both from
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:CSX_A-Line_Bridge).
+
 ## Structured workouts
 
 `MyRun` and `RunRoute` both list FIT workouts from the `Workouts` folder at the top of the watch's drive, under Workouts in the start menu. `RouteSync` sends them the same way as routes: choose a `.fit` file, rename it if you like, and choose Send to Watch. A workout you've chosen runs alongside the route selected in `RunRoute`.

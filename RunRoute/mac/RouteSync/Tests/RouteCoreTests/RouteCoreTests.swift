@@ -1048,3 +1048,52 @@ private let builtDraft = WorkoutDraft(name: "Hill Session", blocks: [
         #expect(TrainingState.dayNumber(late, calendar: calendar) == 20759)
     }
 }
+
+@Suite struct AutoOpenAgent {
+    private func folder() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    /// What launchd would run, with `open` replaced by something that leaves a mark.
+    private func run(_ agent: AutoOpen, mark: URL) throws -> Bool {
+        let command = agent.command.replacingOccurrences(of: "/usr/bin/open", with: "/usr/bin/touch")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", command]
+        try process.run()
+        process.waitUntilExit()
+        return FileManager.default.fileExists(atPath: mark.path)
+    }
+
+    @Test func runsOnEveryMountAndStaysOff() throws {
+        let agent = AutoOpen(app: "/Apps/RouteSync.app", agentFile: try folder().appendingPathComponent("a.plist"))
+        let plist = try #require(PropertyListSerialization.propertyList(from: agent.agent(), format: nil) as? [String: Any])
+        #expect(plist["StartOnMount"] as? Bool == true)
+        #expect(plist["KeepAlive"] == nil)
+        #expect(plist["RunAtLoad"] == nil)
+        #expect((plist["ProgramArguments"] as? [String])?.last == agent.command)
+    }
+
+    @Test func checksForTheWatchAndCopesWithOddPaths() throws {
+        let base = try folder()
+        let watch = base.appendingPathComponent("UNA WATCH")
+        let mark = base.appendingPathComponent("it's open")
+        let agent = AutoOpen(app: mark.path, volume: watch.path, agentFile: base.appendingPathComponent("a.plist"))
+        // Only meaningful with RouteSync closed: the command also skips an open app.
+        #expect(try !run(agent, mark: mark))
+        try FileManager.default.createDirectory(at: watch, withIntermediateDirectories: true)
+        if !isRouteSyncRunning() { #expect(try run(agent, mark: mark)) }
+    }
+
+    private func isRouteSyncRunning() -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        process.arguments = ["-x", "RouteSync"]
+        process.standardOutput = Pipe()
+        try? process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    }
+}

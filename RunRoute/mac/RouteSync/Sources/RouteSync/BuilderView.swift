@@ -7,7 +7,7 @@ struct LibraryView: View {
     @State private var confirmingDelete: WorkoutDraft?
 
     var body: some View {
-        Page(eyebrow: "Workout builder", title: "Your workouts.", watchConnected: model.isMounted) {
+        Page(eyebrow: "Workout builder", title: "Your workouts.", watchConnected: model.isMounted, onEject: model.ejectWatch) {
             ScrollView {
                 VStack(spacing: 12) {
                     if model.drafts.isEmpty {
@@ -95,7 +95,7 @@ struct EditorView: View {
     }
 
     var body: some View {
-        Page(eyebrow: "Workout builder", title: "Build it.", watchConnected: model.isMounted) {
+        Page(eyebrow: "Workout builder", title: "Build it.", watchConnected: model.isMounted, onEject: model.ejectWatch) {
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
                     TextField("Name", text: draft.name).themedField()
