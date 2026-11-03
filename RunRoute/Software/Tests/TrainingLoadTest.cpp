@@ -86,6 +86,19 @@ int main()
     }
     check("a steady load settles at that load", near(held.fitness, 50.0f, 0.5f) && near(held.fatigue, 50.0f, 0.5f));
 
+    {
+        RunLoad slower;
+        slower.setThresholdPace(600);
+        const float speed = 1609.344f / 600.0f;
+        for (uint32_t second = 0; second < 3600; ++second) {
+            slower.add(second, speed, 0.0f, false);
+        }
+        check("a set threshold is what intensity compares against", near(slower.intensity(), 1.0f, 0.01f));
+        slower.reset();
+        slower.add(0, speed, 0.0f, false);
+        check("a threshold survives reset", near(slower.intensity(), 1.0f, 0.01f));
+    }
+
     std::printf(sFailures ? "%d FAILED\n" : "all passed\n", sFailures);
     return sFailures ? 1 : 0;
 }

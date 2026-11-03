@@ -29,6 +29,8 @@
 #include "SettingsSerializer.hpp"
 #include "ActivitySummarySerializer.hpp"
 #include "FitnessEstimator.hpp"
+#include "RunConfig.hpp"
+#include "RunZoneAlerts.hpp"
 #include "TrainingLoad.hpp"
 #include "TrainingSerializer.hpp"
 #include "ActivityWriter.hpp"
@@ -98,6 +100,7 @@ private:
     ActivitySummarySerializer mActivitySummarySerializer;
     FitnessEstimator          mFitness;
     RunLoad                   mRunLoad;
+    RunConfig                 mConfig;
     Training                  mTraining = Training::seed();
     TrainingSerializer        mTrainingSerializer;
     ActivityWriter            mActivityWriter;
@@ -243,7 +246,7 @@ private:
     SDK::Workout::SpeedGauge     mSpeedGauge;
     SDK::Workout::GpsCatchUp     mGpsCatchUp;  ///< Holds the speed gauge off until the distance catches up.
     SDK::Workout::HeartRateGauge mHrGauge;
-    SDK::Workout::ZoneAlerts     mZoneAlerts;
+    RunZoneAlerts                mZoneAlerts;
     /// A zone alert's second playing, until it is sent; see playAlertTwice().
     const SDK::Message::RequestBuzzerPlay::Note* mAlertRepeat        = nullptr;
     uint8_t                                      mAlertRepeatCount   = 0;
@@ -284,6 +287,7 @@ private:
     void sendInitialInfoToGui();
     void startTrack(std::time_t utc);
     void processTrack();
+    void applyConfig();
     void loadTraining();
     uint32_t trainingDay();
 

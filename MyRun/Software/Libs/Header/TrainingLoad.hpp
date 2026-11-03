@@ -26,7 +26,14 @@ public:
 
     void reset()
     {
+        const float threshold = mThresholdSpeedMs;
         *this = RunLoad{};
+        mThresholdSpeedMs = threshold;
+    }
+
+    void setThresholdPace(uint32_t secondsPerMile)
+    {
+        mThresholdSpeedMs = 1609.344f / static_cast<float>(secondsPerMile);
     }
 
     /// Feed the current values. Only the first call in each second of
@@ -39,7 +46,7 @@ public:
         mStarted = true;
         mLastSec = activeSec;
         const float adjusted = speedMs * gradeFactor(gradePct, gradeValid);
-        const float relative = std::min(adjusted / kThresholdSpeedMs, kMaxRelative);
+        const float relative = std::min(adjusted / mThresholdSpeedMs, kMaxRelative);
         mSumSquares += relative * relative;
         ++mSeconds;
     }
@@ -69,6 +76,7 @@ private:
         return grade >= 0.0f ? 1.0f + 0.033f * grade : 1.0f + 0.018f * grade;
     }
 
+    float    mThresholdSpeedMs = kThresholdSpeedMs;
     float    mSumSquares = 0.0f;
     uint32_t mSeconds    = 0;
     uint32_t mLastSec    = 0;

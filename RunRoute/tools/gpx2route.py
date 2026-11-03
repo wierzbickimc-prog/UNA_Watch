@@ -81,6 +81,21 @@ def length_of(xy):
     return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(xy, xy[1:]))
 
 
+def encode(points, tolerance=0.0):
+    """The route file's bytes, plus how many points it kept, the tolerance used and its length in metres."""
+    xy = to_metres(points)
+    keep = simplify(xy, tolerance) if tolerance > 0 else list(range(len(points)))
+    while len(keep) > MAX_POINTS:
+        tolerance = tolerance * 1.5 if tolerance > 0 else 1.0
+        keep = simplify(xy, tolerance)
+
+    data = b"URTE" + struct.pack("<I", len(keep))
+    for i in keep:
+        lat, lon = points[i]
+        data += struct.pack("<ii", round(lat * 1e7), round(lon * 1e7))
+    return data, len(keep), tolerance, length_of(xy)
+
+
 def install(name, data):
     if not os.path.isdir(WATCH_APP):
         sys.exit(f"{WATCH_APP} not found. Plug in the watch, and install RunRoute on it first.")
@@ -111,17 +126,7 @@ def main():
     if len(points) < 2:
         sys.exit(f"{args.gpx} has no route: it needs at least 2 track or route points.")
 
-    xy = to_metres(points)
-    tolerance = args.tolerance
-    keep = simplify(xy, tolerance) if tolerance > 0 else list(range(len(points)))
-    while len(keep) > MAX_POINTS:
-        tolerance = tolerance * 1.5 if tolerance > 0 else 1.0
-        keep = simplify(xy, tolerance)
-
-    data = b"URTE" + struct.pack("<I", len(keep))
-    for i in keep:
-        lat, lon = points[i]
-        data += struct.pack("<ii", round(lat * 1e7), round(lon * 1e7))
+    data, kept, tolerance, metres = encode(points, args.tolerance)
 
     name = route_name(gpx_name, args.gpx)
     if args.install:
@@ -131,8 +136,8 @@ def main():
         with open(target, "wb") as out:
             out.write(data)
 
-    miles = length_of(xy) / 1609.344
-    thinned = f"thinned to {len(keep)} (within {tolerance:.1f} m)" if len(keep) < len(points) else "all kept"
+    miles = metres / 1609.344
+    thinned = f"thinned to {kept} (within {tolerance:.1f} m)" if kept < len(points) else "all kept"
     print(f"{target}: {miles:.2f} mi, {len(points)} points, {thinned}")
 
 

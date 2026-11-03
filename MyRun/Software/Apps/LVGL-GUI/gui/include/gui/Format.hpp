@@ -103,11 +103,10 @@ inline void distanceLap(char* buf, size_t n, float distInUnits)
 
 /// Estimated calories, as no sensor reports them. Running costs about 1 kcal
 /// per kg of body weight per km, whatever the pace.
-inline unsigned calories(float metres)
+inline unsigned calories(float metres, float weightLb)
 {
-    constexpr float kRunnerWeightKg = 165.0f * 0.4536f;  // 165 lb
     constexpr float kKcalPerKgPerKm = 1.0f;
-    return static_cast<unsigned>(metres / 1000.0f * kRunnerWeightKg * kKcalPerKgPerKm);
+    return static_cast<unsigned>(metres / 1000.0f * weightLb * 0.4536f * kKcalPerKgPerKm);
 }
 
 /// "h:mm:ss".

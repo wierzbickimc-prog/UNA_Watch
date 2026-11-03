@@ -49,14 +49,16 @@ const char* phaseTitle(Track::IntervalsPhase phase)
     }
 }
 
+RunConfig sCondition;  ///< The cut-offs, from onShow()
+
 const char* conditionWord(int condition)
 {
-    return condition >= 3 ? "Fresh" : condition >= -2 ? "Normal" : condition >= -7 ? "Tired" : "Struggling";
+    return condition >= sCondition.conditionFresh ? "Fresh" : condition >= sCondition.conditionNormal ? "Normal" : condition >= sCondition.conditionTired ? "Tired" : "Struggling";
 }
 
 uint32_t conditionColor(int condition)
 {
-    return condition >= 3 ? Color::GREEN : condition >= -2 ? Color::WHITE : condition >= -7 ? Color::YELLOW : Color::RED;
+    return condition >= sCondition.conditionFresh ? Color::GREEN : condition >= sCondition.conditionNormal ? Color::WHITE : condition >= sCondition.conditionTired ? Color::YELLOW : Color::RED;
 }
 
 void setHidden(lv_obj_t* obj, bool hidden)
@@ -337,6 +339,7 @@ void TrackScreen::updateMode(const Track::Data& data)
 void TrackScreen::onShow()
 {
     mLeaving = false;
+    sCondition = mModel.getRunConfig();
     mModel.menu().track.action.reset();
 
     // Set the mode before the face so that showFace() can fall back to the
@@ -473,7 +476,7 @@ void TrackScreen::onTrackData(const Track::Data& data)
     Fmt::distanceTotal(buf, sizeof(buf), Fmt::distUnits(data.distance, mIsImperial));
     lv_label_set_text(mDistanceValue, buf);
     lv_label_set_text(mDistanceUnits, Fmt::units(mIsImperial));
-    lv_label_set_text_fmt(mCaloriesValue, "%u", Fmt::calories(data.distance));
+    lv_label_set_text_fmt(mCaloriesValue, "%u", Fmt::calories(data.distance, static_cast<float>(mModel.getRunConfig().weightLb)));
 
     setCondition(data);
 

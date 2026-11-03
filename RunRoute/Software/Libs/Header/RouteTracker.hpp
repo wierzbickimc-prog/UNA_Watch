@@ -36,6 +36,18 @@ public:
 
     enum class Event { None, WentOff, StillOff, BackOn };
 
+    static constexpr float feetToMetres(int32_t feet) { return static_cast<float>(feet) * 0.3048f; }
+
+    /// What counts as off course, back on and finished. Keeps the route.
+    void setLimits(float offCourseM, float backOnM, uint32_t offCourseSec, uint32_t repeatSec, float finishM)
+    {
+        mOffCourseM   = offCourseM;
+        mBackOnM      = backOnM;
+        mOffCourseSec = offCourseSec;
+        mRepeatSec    = repeatSec;
+        mFinishM      = finishM;
+    }
+
     /// Replace the route from file contents. False leaves no route.
     bool load(const uint8_t* data, size_t size)
     {
@@ -105,7 +117,7 @@ public:
 
         const bool following = mStarted && mJoined && !mOff;
         Match match = search(following ? mSegment : 0, following);
-        if (following && match.distance > kBackOnM) {
+        if (following && match.distance > mBackOnM) {
             match = search(0, false);
         }
         mStarted  = true;
@@ -117,13 +129,13 @@ public:
         }
 
         if (!mJoined) {
-            mJoined = mDistance <= kBackOnM;
+            mJoined = mDistance <= mBackOnM;
             return Event::None;
         }
         if (mDone) {
             return Event::None;
         }
-        if (mDistance <= kBackOnM && mAlong >= total() - kFinishM) {
+        if (mDistance <= mBackOnM && mAlong >= total() - mFinishM) {
             const bool wasOff = mOff;
             mOff  = false;
             mDone = true;
@@ -158,6 +170,12 @@ private:
         float    along;
         float    distance;
     };
+
+    float    mOffCourseM   = kOffCourseM;
+    float    mBackOnM      = kBackOnM;
+    uint32_t mOffCourseSec = kOffCourseSec;
+    uint32_t mRepeatSec    = kRepeatSec;
+    float    mFinishM      = kFinishM;
 
     static constexpr double kMetresPerDegLat = 111320.0;
     static constexpr double kPi = 3.14159265358979323846;
@@ -277,18 +295,18 @@ private:
     Event updateAlarm(uint32_t sec)
     {
         if (mOff) {
-            if (mDistance <= kBackOnM) {
+            if (mDistance <= mBackOnM) {
                 mOff = false;
                 mFar = false;
                 return Event::BackOn;
             }
-            if (sec - mLastAlarm >= kRepeatSec) {
+            if (sec - mLastAlarm >= mRepeatSec) {
                 mLastAlarm = sec;
                 return Event::StillOff;
             }
             return Event::None;
         }
-        if (mDistance <= kOffCourseM) {
+        if (mDistance <= mOffCourseM) {
             mFar = false;
             return Event::None;
         }
@@ -296,7 +314,7 @@ private:
             mFar = true;
             mFarSince = sec;
         }
-        if (sec - mFarSince < kOffCourseSec) {
+        if (sec - mFarSince < mOffCourseSec) {
             return Event::None;
         }
         mOff = true;

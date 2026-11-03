@@ -8,6 +8,7 @@
 #include <cstring>
 #include <utility>
 
+#include "RunConfigLoader.hpp"
 #include "Settings.hpp"
 #include "ActivitySummary.hpp"
 #include "Track.hpp"
@@ -104,6 +105,16 @@ Service::Service(SDK::Kernel &kernel)
     std::memcpy(mHrThresholds, CustomMessage::kHrThresholdsDefault, sizeof(mHrThresholds));
 }
 
+void Service::applyConfig()
+{
+    mRunLoad.setThresholdPace(static_cast<uint32_t>(mConfig.thresholdPaceSec));
+    mFitness.setMaxHr(static_cast<float>(mConfig.maxHr));
+    mZoneAlerts.setTimings(static_cast<uint32_t>(mConfig.zoneQuietSec), static_cast<uint32_t>(mConfig.zoneRepeatSec));
+    mRoute.setLimits(RouteTracker::feetToMetres(mConfig.routeOffFt), RouteTracker::feetToMetres(mConfig.routeBackFt),
+                     static_cast<uint32_t>(mConfig.routeDelaySec), static_cast<uint32_t>(mConfig.routeRepeatSec),
+                     RouteTracker::feetToMetres(mConfig.routeFinishFt));
+}
+
 Service::~Service()
 {
     disconnect();   // Cleanup resources
@@ -120,6 +131,10 @@ void Service::run()
     if (!mSettingsSerializer.load(mSettings)) {
         LOG_WARNING("Failed to load settings\n");
     }
+
+    // What RouteSync on the Mac set, read once: a change applies at the next start.
+    mConfig = loadRunConfig(mKernel);
+    applyConfig();
 
     // Get summary
     if (!mActivitySummarySerializer.load(mSummary)) {
@@ -808,7 +823,7 @@ void Service::sendInitialInfoToGui()
     }
 
     std::memcpy(mHrThresholds, hrThresholds, sizeof(mHrThresholds));
-    SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount);
+    SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount, mConfig);
     SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
     SDK::send_msg<CustomMessage::Battery>(mKernel, static_cast<uint8_t>(mBatterySoc.get()));
 }
@@ -1410,7 +1425,8 @@ void Service::stopTrack(bool discard)
 
         // A saved run counts towards the history; a discarded one does not.
         mTraining.addLoad(trainingDay(), mRunLoad.load());
-        mTraining.vo2Baseline = FitnessEstimator::nextBaseline(mTraining.vo2Baseline, mSummary.vo2max);
+        mTraining.vo2Baseline = FitnessEstimator::nextBaseline(mTraining.vo2Baseline, mSummary.vo2max,
+                                                                static_cast<float>(mConfig.vo2BaselinePct) / 100.0f);
         mTraining.savedUtc = static_cast<uint32_t>(mTimeCounter.getEndValue());
         if (!mTrainingSerializer.save(skTrainingFile, mTraining)) {
             LOG_ERROR("Can't save training history\n");

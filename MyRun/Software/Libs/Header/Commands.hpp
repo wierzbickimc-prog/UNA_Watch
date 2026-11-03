@@ -11,6 +11,7 @@
 #include "SDK/Workout/WorkoutProgram.hpp"
 
 // Application types
+#include "RunConfig.hpp"
 #include "Settings.hpp"
 #include "Track.hpp"
 #include "ActivitySummary.hpp"
@@ -64,6 +65,8 @@ namespace CustomMessage {
         uint8_t hrThresholds[kHrThresholdsCount];
         uint8_t hrThresholdsCount;
 
+        RunConfig config;
+
         SettingsUpd()
             : SDK::MessageBase(SETTINGS_UPDATE)
             , unitsImperial(false)
@@ -73,7 +76,8 @@ namespace CustomMessage {
         {}
 
         explicit SettingsUpd(Settings settings, bool units, bool timeFormat12h,
-                         const uint8_t (&thresholds)[kHrThresholdsCount], uint8_t thresholdCount)
+                         const uint8_t (&thresholds)[kHrThresholdsCount], uint8_t thresholdCount,
+                         const RunConfig& config)
             : SettingsUpd()
         {
             this->settings          = settings;
@@ -81,6 +85,7 @@ namespace CustomMessage {
             this->timeFormat12h     = timeFormat12h;
             memcpy(this->hrThresholds, thresholds, sizeof(this->hrThresholds));
             this->hrThresholdsCount = thresholdCount;
+            this->config            = config;
         }
     };
 

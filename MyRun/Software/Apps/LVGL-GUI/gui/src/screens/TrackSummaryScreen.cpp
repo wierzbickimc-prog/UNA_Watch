@@ -208,7 +208,7 @@ void TrackSummaryScreen::setSummary(const ActivitySummary& s)
         lv_label_set_text(mConditionLow, Strings::kNoValue);
         lv_label_set_text(mConditionEnd, Strings::kNoValue);
     }
-    lv_label_set_text_fmt(mCalories, "%u", Fmt::calories(s.distance));
+    lv_label_set_text_fmt(mCalories, "%u", Fmt::calories(s.distance, static_cast<float>(mModel.getRunConfig().weightLb)));
 
     Fmt::fixed(buf, sizeof(buf), s.intensity, 2);
     lv_label_set_text(mIntensity, buf);

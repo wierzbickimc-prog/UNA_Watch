@@ -9,3 +9,7 @@ MyRun/Software/Output/
 RunRoute/Output/*
 !RunRoute/Output/.gitignore
 RunRoute/Software/Output/
+
+# Mac route sync app
+RunRoute/mac/RouteSync/.build/
+__pycache__/

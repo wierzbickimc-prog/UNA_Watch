@@ -29,9 +29,9 @@ public:
 
     /// The VO2max a speed (m/s) and heart rate (bpm) imply, or 0 if outside the
     /// range the formulas hold for: running pace, and at least 60% of max HR.
-    static float estimate(float speedMs, float hr)
+    static float estimate(float speedMs, float hr, float maxHr = kMaxHr)
     {
-        const float hrFraction = hr / kMaxHr;
+        const float hrFraction = hr / maxHr;
         if (speedMs < kMinSpeedMs || hrFraction < 0.60f || hrFraction > 0.98f) {
             return 0.0f;
         }
@@ -44,7 +44,14 @@ public:
 
     void reset()
     {
+        const float maxHr = mMaxHr;
         *this = FitnessEstimator{};
+        mMaxHr = maxHr;
+    }
+
+    void setMaxHr(float maxHr)
+    {
+        mMaxHr = maxHr;
     }
 
     /// Feed the current values. Call it as often as you like: only the first call
@@ -120,15 +127,17 @@ public:
 
     /// The new baseline once a run of @p vo2 is saved: slow to move, so that one
     /// odd run does not rewrite what "usual" means.
-    static float nextBaseline(float baseline, float vo2)
+    static float nextBaseline(float baseline, float vo2, float share = 0.2f)
     {
         if (vo2 <= 0.0f) {
             return baseline;
         }
-        return baseline > 0.0f ? baseline + (vo2 - baseline) * 0.2f : vo2;
+        return baseline > 0.0f ? baseline + (vo2 - baseline) * share : vo2;
     }
 
 private:
+    float mMaxHr = kMaxHr;
+
     static constexpr float kMinSpeedMs = 2.2f;  ///< About 12:10 per mile; slower is walking
 
     static int percentOf(float value, float baseline)
@@ -156,7 +165,7 @@ private:
         if (*speed.second - *speed.first > 0.2f * speedAvg || *hr.second - *hr.first > 10.0f) {
             return 0.0f;
         }
-        return estimate(speedAvg, hrAvg);
+        return estimate(speedAvg, hrAvg, mMaxHr);
     }
 
     float    mSpeed[kWindowSec] = {};

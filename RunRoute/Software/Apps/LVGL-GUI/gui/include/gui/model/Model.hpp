@@ -89,6 +89,7 @@ public:
     bool is12HourFormat() const;
     const uint8_t* getHrThresholds() const;
     uint8_t        getHrThresholdsCount() const;
+    const RunConfig& getRunConfig() const { return mRunConfig; }
     const Settings& getSettings() const;
     void saveSettings(const Settings& sett);
 
@@ -218,6 +219,7 @@ private:
     bool mTimeFormat12h = false;
     uint8_t mHrThresholds[App::Config::kHrThresholdsCount] = {};
     uint8_t mHrThresholdsCount = App::Config::kHrThresholdsCount;
+    RunConfig mRunConfig;
     Settings mSettings {};
 
     // Kernel state

@@ -207,6 +207,23 @@ int main()
         check("reset keeps the route", t.view().status == Status::WAITING);
     }
 
+    {
+        // 60 m off a route heading north: beyond the default 150 ft.
+        const std::vector<std::pair<double, double>> route = {{0, 0}, {0, 2000}};
+        RouteTracker standard = loaded(route);
+        RouteTracker wide = loaded(route);
+        wide.setLimits(100.0f, 80.0f, 10, 60, 20.0f);
+        at(standard, 0, 0, 100);
+        at(wide, 0, 0, 100);
+        bool standardAlarmed = false, wideAlarmed = false;
+        for (uint32_t second = 1; second < 40; ++second) {
+            standardAlarmed = at(standard, second, 60, 100) != RouteTracker::Event::None || standardAlarmed;
+            wideAlarmed     = at(wide, second, 60, 100) != RouteTracker::Event::None || wideAlarmed;
+        }
+        check("the default limit alarms at 60 m", standardAlarmed);
+        check("a wider limit doesn't", !wideAlarmed);
+    }
+
     std::printf(sFailures ? "%d FAILED\n" : "all passed\n", sFailures);
     return sFailures ? 1 : 0;
 }

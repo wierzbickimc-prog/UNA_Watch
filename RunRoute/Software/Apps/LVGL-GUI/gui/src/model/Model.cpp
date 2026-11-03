@@ -413,6 +413,7 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             mTimeFormat12h     = msg->timeFormat12h;
             memcpy(mHrThresholds, msg->hrThresholds, sizeof(mHrThresholds));
             mHrThresholdsCount = msg->hrThresholdsCount;
+            mRunConfig         = msg->config;
             modelListener->onSettings(mSettings);
         } break;
 

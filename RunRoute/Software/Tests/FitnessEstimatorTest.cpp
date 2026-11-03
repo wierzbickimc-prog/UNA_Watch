@@ -89,6 +89,10 @@ int main()
     check("later runs move it slowly", near(FitnessEstimator::nextBaseline(50.0f, 55.0f), 51.0f, 0.01f));
     check("a run without VO2max leaves it", FitnessEstimator::nextBaseline(50.0f, 0.0f) == 50.0f);
 
+    check("a lower max heart rate changes the estimate",
+          FitnessEstimator::estimate(kMilePerMin9, 150.0f, 180.0f) != FitnessEstimator::estimate(kMilePerMin9, 150.0f));
+    check("the baseline share can be set", near(FitnessEstimator::nextBaseline(50.0f, 60.0f, 0.5f), 55.0f, 0.01f));
+
     std::printf(sFailures ? "%d FAILED\n" : "all passed\n", sFailures);
     return sFailures ? 1 : 0;
 }
