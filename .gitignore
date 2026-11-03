@@ -1,0 +1,11 @@
+una-sdk/
+.venv/
+build/
+MyRun/Output/*
+!MyRun/Output/.gitignore
+.DS_Store
+MyRun/Software/Output/
+/tools/
+RunRoute/Output/*
+!RunRoute/Output/.gitignore
+RunRoute/Software/Output/
