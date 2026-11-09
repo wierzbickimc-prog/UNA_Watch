@@ -85,10 +85,9 @@ void TrackScreen::build()
 
     buildFaceStatus();
     buildFaceRoute();
-    buildFaceRun();
-    buildFaceTotal();
     buildFaceCondition();
     buildFaceIntervals();
+    mDataFace = std::make_unique<DataFace>(mRoot);
 
     mWorkoutGauge = std::make_unique<WorkoutFaceGauge>(mRoot);
     mWorkoutStep  = std::make_unique<WorkoutFaceStep>(mRoot);
@@ -174,7 +173,10 @@ void TrackScreen::setRoute(const Track::RouteView& view)
 
     // The alarm brings the route up, whichever face was showing.
     if (view.status == Track::RouteStatus::OFF_COURSE && mRouteStatus != view.status) {
-        showFace(FaceId::ID_ROUTE);
+        const uint8_t route = mScreens.find(ScreenLayout::Kind::ROUTE);
+        if (route < mScreens.count) {
+            showFace(static_cast<uint16_t>(kScreenBase + route));
+        }
     }
     mRouteStatus = view.status;
 }
@@ -202,35 +204,6 @@ void TrackScreen::onRouteData(const Track::RouteView& view)
     if (!mLeaving) {
         setRoute(view);
     }
-}
-
-void TrackScreen::buildFaceRun()
-{
-    lv_obj_t* f = mFaceRun = Theme::container(mRoot, 0, 0, 240, 240);
-    mHrZone  = std::make_unique<Widgets::HeartRateZone>(f, 15, 4);
-    mHrValue = Theme::label(f, F::SemiBold40, Strings::kNoValue, 75, 29, 90);
-    Theme::label(f, F::Regular18, "HR", 160, 50, 45, LV_TEXT_ALIGN_LEFT);
-    Theme::hline(f, 35, 79, 170);
-    Theme::label(f, F::Italic18, "Lap Pace", 0, 88, 240);
-    mLapPaceValue = Theme::label(f, F::SemiBold35, Strings::kNoValue, 53, 111, 134);
-    Theme::hline(f, 35, 159, 170);
-    mRunDistValue = Theme::label(f, F::SemiBold35, Strings::kNoValue, 53, 162, 134);
-    mRunDistUnits = Theme::label(f, F::Regular18, Strings::kKm, 172, 180, 45, LV_TEXT_ALIGN_LEFT);
-    Theme::label(f, F::Italic18, "Distance", 0, 204, 240);
-}
-
-void TrackScreen::buildFaceTotal()
-{
-    lv_obj_t* f = mFaceTotal = Theme::container(mRoot, 0, 0, 240, 240);
-    Theme::label(f, F::Italic18, "Time", 0, 10, 240);
-    mTimerValue = Theme::label(f, F::SemiBold40, "0:00:00", 0, 30, 240);
-    Theme::hline(f, 35, 79, 170);
-    Theme::label(f, F::Italic18, "Distance", 0, 88, 240);
-    mDistanceValue = Theme::label(f, F::SemiBold35, Strings::kNoValue, 53, 111, 134);
-    mDistanceUnits = Theme::label(f, F::Regular18, Strings::kKm, 178, 129, 45, LV_TEXT_ALIGN_LEFT);
-    Theme::hline(f, 35, 159, 170);
-    mCaloriesValue = Theme::label(f, F::SemiBold35, "0", 35, 162, 170);
-    Theme::label(f, F::Italic18, "Calories", 0, 204, 240);
 }
 
 void TrackScreen::buildFaceCondition()
@@ -284,25 +257,22 @@ void TrackScreen::buildFaceStatus()
 
 const uint16_t* TrackScreen::faces(uint16_t& count) const
 {
-    static const uint16_t kWorkout[] = {
-        FaceId::ID_WORKOUT_GAUGE, FaceId::ID_WORKOUT_STEP, FaceId::ID_WORKOUT_NEXT,
-        FaceId::ID_ROUTE, FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_TRACK4, FaceId::ID_TRACK3,
-    };
-    static const uint16_t kIntervals[] = {
-        FaceId::ID_INTERVALS, FaceId::ID_ROUTE, FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_TRACK4, FaceId::ID_TRACK3,
-    };
-    static const uint16_t kFree[] = { FaceId::ID_ROUTE, FaceId::ID_TRACK1, FaceId::ID_TRACK2, FaceId::ID_TRACK4, FaceId::ID_TRACK3 };
+    count = mFaceCount;
+    return mFaces;
+}
 
-    switch (mMode) {
-        case Mode::Workout:
-            count = sizeof(kWorkout) / sizeof(kWorkout[0]);
-            return kWorkout;
-        case Mode::Intervals:
-            count = sizeof(kIntervals) / sizeof(kIntervals[0]);
-            return kIntervals;
-        default:
-            count = sizeof(kFree) / sizeof(kFree[0]);
-            return kFree;
+void TrackScreen::buildFaceList()
+{
+    mFaceCount = 0;
+    if (mMode == Mode::Workout) {
+        mFaces[mFaceCount++] = FaceId::ID_WORKOUT_GAUGE;
+        mFaces[mFaceCount++] = FaceId::ID_WORKOUT_STEP;
+        mFaces[mFaceCount++] = FaceId::ID_WORKOUT_NEXT;
+    } else if (mMode == Mode::Intervals) {
+        mFaces[mFaceCount++] = FaceId::ID_INTERVALS;
+    }
+    for (uint8_t i = 0; i < mScreens.count; ++i) {
+        mFaces[mFaceCount++] = static_cast<uint16_t>(kScreenBase + i);
     }
 }
 
@@ -328,9 +298,8 @@ void TrackScreen::updateMode(const Track::Data& data)
     }
     mModeSet = true;
     mMode    = mode;
-    uint16_t count = 0;
-    faces(count);
-    mIndicator->setCount(count);
+    buildFaceList();
+    mIndicator->setCount(mFaceCount);
     // A face the run no longer has (a workout completed or ended) falls back
     // to the first one it has.
     showFace(mFaceId);
@@ -341,6 +310,31 @@ void TrackScreen::onShow()
     mLeaving = false;
     sCondition = mModel.getRunConfig();
     mModel.menu().track.action.reset();
+
+    mIsImperial       = mModel.isUnitsImperial();
+    mIs12Hour         = mModel.is12HourFormat();
+    mHrThresholdCount = mModel.getHrThresholdsCount() < App::Config::kHrThresholdsCount
+                            ? mModel.getHrThresholdsCount()
+                            : static_cast<uint8_t>(App::Config::kHrThresholdsCount);
+    memcpy(mHrThresholds, mModel.getHrThresholds(), mHrThresholdCount);
+    mDataContext.imperial         = mIsImperial;
+    mDataContext.is12Hour         = mIs12Hour;
+    mDataContext.weightLb         = static_cast<float>(sCondition.weightLb);
+    mDataContext.hrThresholds     = mHrThresholds;
+    mDataContext.hrThresholdCount = mHrThresholdCount;
+    mDataContext.battery          = mModel.getBatteryLevel();
+    mDataContext.conditionFresh   = sCondition.conditionFresh;
+    mDataContext.conditionNormal  = sCondition.conditionNormal;
+    mDataContext.conditionTired   = sCondition.conditionTired;
+    {
+        uint8_t h = 0, m = 0, sec = 0;
+        mModel.getTime(h, m, sec);
+        mDataContext.hour   = h;
+        mDataContext.minute = m;
+    }
+    // A new layout comes with the settings, so pick it up on each show.
+    mScreens = mModel.getScreenLayout();
+    mModeSet = false;
 
     // Set the mode before the face so that showFace() can fall back to the
     // first face the run has, and the scroll indicator count fits.
@@ -353,13 +347,6 @@ void TrackScreen::onShow()
     const bool forceIntervals = mMode == Mode::Intervals &&
         mModel.getPendingAlertIntervals().phase == Track::IntervalsPhase::COOL_DOWN;
     showFace(forceIntervals ? static_cast<uint16_t>(FaceId::ID_INTERVALS) : mModel.menu().track.get());
-
-    mIsImperial       = mModel.isUnitsImperial();
-    mIs12Hour         = mModel.is12HourFormat();
-    mHrThresholdCount = mModel.getHrThresholdsCount() < App::Config::kHrThresholdsCount
-                            ? mModel.getHrThresholdsCount()
-                            : static_cast<uint8_t>(App::Config::kHrThresholdsCount);
-    memcpy(mHrThresholds, mModel.getHrThresholds(), mHrThresholdCount);
 
     onTrackData(data);
     mRouteStatus = mModel.getRouteView().status;
@@ -395,14 +382,23 @@ void TrackScreen::showFace(uint16_t id)
     if (index >= count) {
         index = 0;
     }
+    if (count == 0) {
+        return;
+    }
     id      = list[index];
     mFaceId = id;
+    using Kind = ScreenLayout::Kind;
+    const bool layout = id >= kScreenBase && id - kScreenBase < mScreens.count;
+    const Kind kind   = layout ? mScreens.screens[id - kScreenBase].kind : Kind::COUNT;
     setHidden(mFaceIntervals,         id != FaceId::ID_INTERVALS);
-    setHidden(mFaceRoute,             id != FaceId::ID_ROUTE);
-    setHidden(mFaceRun,               id != FaceId::ID_TRACK1);
-    setHidden(mFaceTotal,             id != FaceId::ID_TRACK2);
-    setHidden(mFaceCondition,         id != FaceId::ID_TRACK4);
-    setHidden(mFaceStatus,            id != FaceId::ID_TRACK3);
+    setHidden(mFaceRoute,             kind != Kind::ROUTE);
+    setHidden(mFaceCondition,         kind != Kind::CONDITION);
+    setHidden(mFaceStatus,            kind != Kind::STATUS);
+    setHidden(mDataFace->root(),      kind != Kind::DATA);
+    if (kind == Kind::DATA) {
+        mDataFace->setScreen(mScreens.screens[id - kScreenBase]);
+        mDataFace->show(mModel.getTrackData(), mDataContext);
+    }
     setHidden(mWorkoutGauge->root(),  id != FaceId::ID_WORKOUT_GAUGE);
     setHidden(mWorkoutStep->root(),   id != FaceId::ID_WORKOUT_STEP);
     setHidden(mWorkoutNext->root(),   id != FaceId::ID_WORKOUT_NEXT);
@@ -460,23 +456,7 @@ void TrackScreen::onTrackData(const Track::Data& data)
 
     char buf[16];
 
-    // Run face
-    Fmt::heartRate(buf, sizeof(buf), data.hr);
-    lv_label_set_text(mHrValue, buf);
-    mHrZone->setHR(data.hr < App::Display::kMinHR ? 0.0f : data.hr, mHrThresholds, mHrThresholdCount);
-    Fmt::pace(buf, sizeof(buf), Fmt::paceUnits(data.lapPace, mIsImperial));
-    lv_label_set_text(mLapPaceValue, buf);
-    Fmt::distanceTotal(buf, sizeof(buf), Fmt::distUnits(data.distance, mIsImperial));
-    lv_label_set_text(mRunDistValue, buf);
-    lv_label_set_text(mRunDistUnits, Fmt::units(mIsImperial));
-
-    // Totals face
-    Fmt::hms(buf, sizeof(buf), data.totalTime);
-    lv_label_set_text(mTimerValue, buf);
-    Fmt::distanceTotal(buf, sizeof(buf), Fmt::distUnits(data.distance, mIsImperial));
-    lv_label_set_text(mDistanceValue, buf);
-    lv_label_set_text(mDistanceUnits, Fmt::units(mIsImperial));
-    lv_label_set_text_fmt(mCaloriesValue, "%u", Fmt::calories(data.distance, static_cast<float>(mModel.getRunConfig().weightLb)));
+    refreshDataFace();
 
     setCondition(data);
 
@@ -575,11 +555,25 @@ void TrackScreen::onBatteryLevel(uint8_t level)
 {
     mBattery->setLevel(level);
     lv_label_set_text_fmt(mPercent, "%u%%", level);
+    mDataContext.battery = level;
+    refreshDataFace();
+}
+
+void TrackScreen::refreshDataFace()
+{
+    if (!mLeaving && mDataFace && !lv_obj_has_flag(mDataFace->root(), LV_OBJ_FLAG_HIDDEN)) {
+        mDataFace->show(mModel.getTrackData(), mDataContext);
+    }
 }
 
 void TrackScreen::onTime(uint8_t hour, uint8_t minute, uint8_t /*sec*/)
 {
     setTime(hour, minute);
+    if (hour != mDataContext.hour || minute != mDataContext.minute) {
+        mDataContext.hour   = hour;
+        mDataContext.minute = minute;
+        refreshDataFace();
+    }
 }
 
 void TrackScreen::setTime(uint8_t h, uint8_t m)

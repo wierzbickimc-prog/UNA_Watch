@@ -30,6 +30,8 @@ struct ContentView: View {
                 ManageView(model: model)
             case .settings:
                 SettingsView(model: model)
+            case .screens:
+                ScreensView(model: model)
             case .library:
                 LibraryView(model: model)
             case .editor:
@@ -90,6 +92,9 @@ struct ContentView: View {
 
                 menuRow(icon: "figure.run.square.stack", title: "Workout builder", detail: "Make, edit and send your own workouts") {
                     model.openLibrary()
+                }
+                menuRow(icon: "applewatch", title: "Run screens", detail: "Choose the screens and fields RunRoute shows") {
+                    model.openScreens()
                 }
                 menuRow(icon: "slider.horizontal.3", title: "Settings", detail: "Threshold, zones, alerts and route alarms") {
                     model.openSettings()

@@ -26,6 +26,7 @@ final class UploadModel: ObservableObject {
         case finished(Ejection, sentAnything: Bool, sentWorkout: Bool)
         case manage
         case settings
+        case screens
         case library
         case editor
     }
@@ -49,6 +50,7 @@ final class UploadModel: ObservableObject {
         static let thresholdBpm = "thresholdBpm"
         static let thresholdPace = "thresholdPace"
         static let settings = "runSettings"
+        static let screens = "runScreens"
     }
 
     @Published private(set) var phase = Phase.ready
@@ -82,6 +84,14 @@ final class UploadModel: ObservableObject {
     private var trainingOnWatch: TrainingState?
     private var settingsPending = false
 
+    /// The run screens being built. Saved as they change.
+    @Published var screens: ScreenLayout {
+        didSet {
+            if let data = try? JSONEncoder().encode(screens) { UserDefaults.standard.set(data, forKey: Key.screens) }
+        }
+    }
+    private var screensPending = false
+
     /// The workouts built here, and the one open in the editor. Both save as they change.
     @Published private(set) var drafts: [WorkoutDraft]
     @Published var editing: WorkoutDraft? {
@@ -112,6 +122,8 @@ final class UploadModel: ObservableObject {
         loaded.thresholdBpm = Int(bpm.trimmingCharacters(in: .whitespaces))
         if let seconds = ZoneTargets.seconds(fromPace: pace) { loaded.thresholdPaceSec = seconds }
         drafts = library.load()
+        screens = defaults.data(forKey: Key.screens).flatMap { try? JSONDecoder().decode(ScreenLayout.self, from: $0) }
+            ?? .defaults
         settings = loaded
         thresholdBpm = bpm
         thresholdPace = pace
@@ -222,6 +234,7 @@ final class UploadModel: ObservableObject {
     func cancel() {
         approved = nil
         settingsPending = false
+        screensPending = false
         items = []
         unreadable = []
         outcomes = []
@@ -257,6 +270,8 @@ final class UploadModel: ObservableObject {
         if phase == .waitingForWatch, isMounted {
             if settingsPending {
                 writeSettings()
+            } else if screensPending {
+                writeScreens()
             } else {
                 sendApproved()
             }
@@ -522,6 +537,57 @@ final class UploadModel: ObservableObject {
             results.append(.failed("Workouts", why: error.localizedDescription))
         }
         return results
+    }
+
+    // MARK: Screens
+
+    func openScreens() {
+        phase = .screens
+    }
+
+    /// What RunRoute has now, to start from instead of what's saved here.
+    var screensOnWatch: ScreenLayout? {
+        isMounted ? USBSettingsStore().screens() : nil
+    }
+
+    func resetScreens() {
+        screens = .defaults
+    }
+
+    func sendScreens() {
+        guard screens.problems.isEmpty else { return }
+        outcomes = []
+        if isMounted {
+            writeScreens()
+        } else {
+            screensPending = true
+            phase = .waitingForWatch
+        }
+    }
+
+    private func writeScreens() {
+        screensPending = false
+        phase = .working("Sending screens to the watch")
+        let layout = screens
+        Task {
+            let result: RouteUploader.Outcome = await Task.detached {
+                do {
+                    return try USBSettingsStore().writeScreens(layout)
+                        ? .updated("Run screens", detail: "\(layout.screens.count) screens. They apply the next time RunRoute starts.")
+                        : .failed("Run screens", why: "RunRoute isn't installed on the watch.")
+                } catch {
+                    return .failed("Run screens", why: error.localizedDescription)
+                }
+            }.value
+            outcomes = [result]
+            if result.isFailure {
+                phase = .finished(.notTried, sentAnything: false, sentWorkout: false)
+                return
+            }
+            phase = .working("Ejecting the watch")
+            let ejected = await Self.eject()
+            phase = .finished(ejected ? .done : .failed, sentAnything: false, sentWorkout: false)
+        }
     }
 
     // MARK: What's on the watch

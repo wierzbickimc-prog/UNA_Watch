@@ -12,6 +12,7 @@
 
 // Application types
 #include "RunConfig.hpp"
+#include "ScreenLayout.hpp"
 #include "Settings.hpp"
 #include "Track.hpp"
 #include "RouteCatalog.hpp"
@@ -70,6 +71,7 @@ namespace CustomMessage {
         uint8_t hrThresholdsCount;
 
         RunConfig config;
+        ScreenLayout screens;
 
         SettingsUpd()
             : SDK::MessageBase(SETTINGS_UPDATE)
@@ -81,7 +83,7 @@ namespace CustomMessage {
 
         explicit SettingsUpd(Settings settings, bool units, bool timeFormat12h,
                          const uint8_t (&thresholds)[kHrThresholdsCount], uint8_t thresholdCount,
-                         const RunConfig& config)
+                         const RunConfig& config, const ScreenLayout& screens)
             : SettingsUpd()
         {
             this->settings          = settings;
@@ -90,6 +92,7 @@ namespace CustomMessage {
             memcpy(this->hrThresholds, thresholds, sizeof(this->hrThresholds));
             this->hrThresholdsCount = thresholdCount;
             this->config            = config;
+            this->screens           = screens;
         }
     };
 

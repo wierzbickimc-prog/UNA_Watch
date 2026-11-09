@@ -1097,3 +1097,72 @@ private let builtDraft = WorkoutDraft(name: "Hill Session", blocks: [
         return process.terminationStatus == 0
     }
 }
+
+@Suite struct Screens {
+    private func source(_ path: String) throws -> String {
+        let url = URL(fileURLWithPath: #filePath).appendingPathComponent("../../../../../Software/\(path)").standardizedFileURL
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    /// The field keys, in order, and the screen kinds must be the watch's.
+    @Test func matchesTheWatchApp() throws {
+        let header = try source("Libs/Header/ScreenLayout.hpp")
+        func strings(after marker: String) throws -> [String] {
+            let start = try #require(header.range(of: marker))
+            let end = try #require(header.range(of: "};", range: start.upperBound..<header.endIndex))
+            let block = String(header[start.upperBound..<end.lowerBound])
+            let pattern = try NSRegularExpression(pattern: #""(\w*)""#)
+            return pattern.matches(in: block, range: NSRange(block.startIndex..., in: block)).map {
+                String(block[Range($0.range(at: 1), in: block)!])
+            }
+        }
+        let fieldKeys = try strings(after: "static const char* key(Field field)")
+        #expect(fieldKeys == [""] + ScreenLayout.fields.map(\.key))
+        let kindKeys = try strings(after: "static const char* key(Kind kind)")
+        #expect(kindKeys == ScreenLayout.Kind.allCases.map(\.rawValue))
+        #expect(header.contains("kMaxScreens = \(ScreenLayout.maxScreens);"))
+        #expect(header.contains("kMaxFields  = \(ScreenLayout.maxFields);"))
+    }
+
+    @Test func writesTheWatchFormat() throws {
+        let layout = ScreenLayout(screens: [.init(kind: .route), .data("hr", "lapPace")])
+        #expect(String(decoding: try layout.screensFile(), as: UTF8.self)
+                == #"{"schema":1,"screens":[{"kind":"route"},{"fields":["hr","lapPace"],"kind":"data"}]}"#)
+        #expect(ScreenLayout.read(try layout.screensFile()) == layout)
+    }
+
+    @Test func defaultsAreTheOldScreens() {
+        #expect(ScreenLayout.defaults.screens.map(\.kind) == [.route, .data, .data, .condition, .status])
+        #expect(ScreenLayout.defaults.problems.isEmpty)
+    }
+
+    @Test func findsProblems() {
+        #expect(ScreenLayout(screens: []).problems.count == 1)
+        let tooMany = ScreenLayout(screens: Array(repeating: .data("pace"), count: 9))
+        #expect(tooMany.problems == ["The watch shows at most 8 screens."])
+        #expect(ScreenLayout(screens: [.data()]).problems.count == 1)
+        #expect(ScreenLayout(screens: [.data("warp")]).problems.count == 1)
+    }
+
+    @Test func fieldCountKeepsWhatWasChosen() {
+        var screen = ScreenLayout.Screen.data("hr")
+        screen.setFieldCount(3)
+        #expect(screen.fields == ["hr", "pace", "distance"])
+        screen.setFieldCount(1)
+        #expect(screen.fields == ["hr"])
+        screen.setFieldCount(9)
+        #expect(screen.fields.count == 4)
+    }
+
+    @Test func goesOnlyToRunRoute() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = USBSettingsStore(appsFolder: folder)
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("MyRun"), withIntermediateDirectories: true)
+        #expect(try store.writeScreens(.defaults) == false)
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("RunRoute"), withIntermediateDirectories: true)
+        let layout = ScreenLayout(screens: [.data("pace")])
+        #expect(try store.writeScreens(layout))
+        #expect(store.screens() == layout)
+        #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("MyRun/screens.json").path))
+    }
+}

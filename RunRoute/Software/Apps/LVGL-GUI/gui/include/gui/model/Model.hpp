@@ -90,6 +90,7 @@ public:
     const uint8_t* getHrThresholds() const;
     uint8_t        getHrThresholdsCount() const;
     const RunConfig& getRunConfig() const { return mRunConfig; }
+    const ScreenLayout& getScreenLayout() const { return mScreens; }
     const Settings& getSettings() const;
     void saveSettings(const Settings& sett);
 
@@ -220,6 +221,7 @@ private:
     uint8_t mHrThresholds[App::Config::kHrThresholdsCount] = {};
     uint8_t mHrThresholdsCount = App::Config::kHrThresholdsCount;
     RunConfig mRunConfig;
+    ScreenLayout mScreens = ScreenLayout::defaults();
     Settings mSettings {};
 
     // Kernel state

@@ -414,6 +414,7 @@ bool Model::customMessageHandler(SDK::MessageBase* message)
             memcpy(mHrThresholds, msg->hrThresholds, sizeof(mHrThresholds));
             mHrThresholdsCount = msg->hrThresholdsCount;
             mRunConfig         = msg->config;
+            mScreens           = msg->screens;
             modelListener->onSettings(mSettings);
         } break;
 

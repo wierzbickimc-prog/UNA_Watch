@@ -53,3 +53,22 @@ RunConfig loadRunConfig(const SDK::Kernel& kernel)
     config.routeFinishFt    = file->getInt("routeFinishFt");
     return config;
 }
+
+ScreenLayout loadScreenLayout(const SDK::Kernel& kernel)
+{
+    ScreenLayout layout = ScreenLayout::defaults();
+    std::unique_ptr<SDK::Interface::IFile> file = kernel.fs.file("screens.json");
+    if (!file || !file->exist() || !file->open(false, false)) {
+        return layout;
+    }
+    constexpr size_t kMaxSize = 2048;
+    const size_t size = file->size();
+    std::unique_ptr<char[]> buffer(size > 0 && size <= kMaxSize ? new (std::nothrow) char[size] : nullptr);
+    size_t read = 0;
+    const bool ok = buffer && file->read(buffer.get(), size, read) && read == size;
+    file->close();
+    if (ok) {
+        parseScreenLayout(buffer.get(), size, layout);
+    }
+    return layout;
+}

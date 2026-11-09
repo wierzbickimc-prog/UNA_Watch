@@ -103,6 +103,7 @@ private:
     FitnessEstimator          mFitness;
     RunLoad                   mRunLoad;
     RunConfig                 mConfig;
+    ScreenLayout              mScreens;
     Training                  mTraining = Training::seed();
     TrainingSerializer        mTrainingSerializer;
     RouteTracker              mRoute;

@@ -149,6 +149,24 @@ public final class USBSettingsStore: @unchecked Sendable {
         return installed.map(\.lastPathComponent)
     }
 
+    /// Only RunRoute has the screen builder; MyRun keeps its own screens.
+    public static let screensApp = "RunRoute"
+
+    /// False when RunRoute isn't installed.
+    @discardableResult
+    public func writeScreens(_ layout: ScreenLayout) throws -> Bool {
+        let app = appsFolder.appendingPathComponent(Self.screensApp)
+        guard FileManager.default.fileExists(atPath: app.path) else { return false }
+        try write(try layout.screensFile(), to: app.appendingPathComponent("screens.json"))
+        return true
+    }
+
+    /// What RunRoute has now, or nil for its defaults.
+    public func screens() -> ScreenLayout? {
+        let file = appsFolder.appendingPathComponent(Self.screensApp).appendingPathComponent("screens.json")
+        return (try? Data(contentsOf: file)).flatMap(ScreenLayout.read)
+    }
+
     /// The newest copy, as the watch apps choose between theirs.
     public func training() -> TrainingState? {
         installed.compactMap { app -> TrainingState? in

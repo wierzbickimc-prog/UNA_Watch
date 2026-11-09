@@ -134,6 +134,7 @@ void Service::run()
 
     // What RouteSync on the Mac set, read once: a change applies at the next start.
     mConfig = loadRunConfig(mKernel);
+    mScreens = loadScreenLayout(mKernel);
     applyConfig();
 
     // Get summary
@@ -823,7 +824,7 @@ void Service::sendInitialInfoToGui()
     }
 
     std::memcpy(mHrThresholds, hrThresholds, sizeof(mHrThresholds));
-    SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount, mConfig);
+    SDK::send_msg<CustomMessage::SettingsUpd>(mKernel, mSettings, mIsImperial, mTimeFormat12h, hrThresholds, CustomMessage::kHrThresholdsCount, mConfig, mScreens);
     SDK::send_msg<CustomMessage::Summary>(mKernel, &mSummary);
     SDK::send_msg<CustomMessage::Battery>(mKernel, static_cast<uint8_t>(mBatterySoc.get()));
 }

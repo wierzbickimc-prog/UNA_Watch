@@ -1,9 +1,9 @@
 /**
  ******************************************************************************
  * @file    TrackScreen.hpp
- * @brief   The live activity screen: the route, run, totals, condition and status faces, after
- *          the three workout faces in a structured workout or the intervals
- *          face in Intervals. L1/L2 page faces, R1 opens the action menu, R2
+ * @brief   The live activity screen: the screens RouteSync's screen builder
+ *          set (route, data, condition, status), after the three workout
+ *          faces in a structured workout or the intervals face in Intervals. L1/L2 page faces, R1 opens the action menu, R2
  *          marks a lap (or moves to the next step or interval phase).
  *
  * Port of the Run app's TrackView/TrackPresenter and its TrackFace* containers.
@@ -16,6 +16,7 @@
 #include <memory>
 
 #include "gui/screens/Screen.hpp"
+#include "gui/widgets/DataFace.hpp"
 #include "gui/widgets/Widgets.hpp"
 #include "gui/widgets/WorkoutFaces.hpp"
 
@@ -57,14 +58,15 @@ private:
     void setRoute(const Track::RouteView& view);
     void setRouteTitle(const char* text, uint32_t color);
     void formatRouteDistance(char* buf, size_t n, float metres, const char* suffix) const;
-    void buildFaceRun();
-    void buildFaceTotal();
     void buildFaceCondition();
     void setCondition(const Track::Data& data);
     void buildFaceStatus();
     void updateMode(const Track::Data& data);
-    /// The faces of the current mode, in L2 order.
+    /// The faces of the current mode, in L2 order: the workout's or the
+    /// intervals' own, then one per layout screen, numbered from kScreenBase.
     const uint16_t* faces(uint16_t& count) const;
+    void buildFaceList();
+    void refreshDataFace();
     uint16_t faceIndex(uint16_t id) const;  ///< Its place in faces(), or count
     /// Show face @p id, or the mode's first face if the run has no such face.
     void showFace(uint16_t id);
@@ -78,8 +80,6 @@ private:
     // Face containers (240 x 240, one visible at a time)
     lv_obj_t* mFaceIntervals = nullptr;
     lv_obj_t* mFaceRoute     = nullptr;
-    lv_obj_t* mFaceRun       = nullptr;
-    lv_obj_t* mFaceTotal     = nullptr;
     lv_obj_t* mFaceCondition = nullptr;
     lv_obj_t* mFaceStatus    = nullptr;
 
@@ -101,18 +101,13 @@ private:
     lv_point_precise_t mRoutePoints[Track::RouteView::kMaxPoints] = {};
     Track::RouteStatus mRouteStatus = Track::RouteStatus::NO_ROUTE;
 
-    // Run face
-    lv_obj_t* mHrValue      = nullptr;
-    lv_obj_t* mLapPaceValue = nullptr;
-    lv_obj_t* mRunDistValue = nullptr;
-    lv_obj_t* mRunDistUnits = nullptr;
-    std::unique_ptr<Widgets::HeartRateZone> mHrZone;
-
-    // Totals face
-    lv_obj_t* mTimerValue    = nullptr;
-    lv_obj_t* mDistanceValue = nullptr;
-    lv_obj_t* mDistanceUnits = nullptr;
-    lv_obj_t* mCaloriesValue = nullptr;
+    // Data screens: one face, laid out again for each.
+    static constexpr uint16_t kScreenBase = FaceId::ID_COUNT;
+    std::unique_ptr<DataFace> mDataFace;
+    DataFace::Context mDataContext;
+    ScreenLayout mScreens = ScreenLayout::defaults();
+    uint16_t mFaces[3 + ScreenLayout::kMaxScreens] = {};
+    uint16_t mFaceCount = 0;
 
     // Condition face
     lv_obj_t* mConditionValue = nullptr;
